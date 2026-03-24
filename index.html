@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
+  <meta name="theme-color" content="#f8fafc" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Leda Tasks" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>Leda Homework OS (Bmob)</title>
+  <link rel="manifest" href="./manifest.json" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg-page-start: #f5f3ff;
+      --bg-page-end: #ecfeff;
+      --header-bg: rgba(237, 233, 254, 0.9);
+      --brand: #6366f1;
+      --brand-strong: #4f46e5;
+      --accent: #0ea5e9;
+      --ok: #16a34a;
+      --warn: #d97706;
+      --danger: #dc2626;
+      --card-border: #e2e8f0;
+    }
+    .sheet {
+      transition: transform 260ms ease, opacity 260ms ease;
+      transform: translateY(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .sheet.open {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    html, body {
+      touch-action: manipulation;
+      -webkit-text-size-adjust: 100%;
+    }
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #cbd5e1;
+      border-top-color: var(--brand-strong);
+      border-radius: 999px;
+      animation: spin 0.8s linear infinite;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+      color: #fff;
+    }
+    .btn-secondary {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+    }
+    .card-soft {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 6px 22px rgba(15, 23, 42, 0.08);
+    }
+    .skeleton {
+      position: relative;
+      overflow: hidden;
+      background: #eef2ff;
+    }
+    .skeleton::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+      animation: shimmer 1.2s infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes shimmer { to { transform: translateX(100%); } }
+  </style>
+</head>
+<body class="text-slate-800 min-h-screen pt-[env(safe-area-inset-top)] px-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]" style="background:linear-gradient(180deg,var(--bg-page-start),var(--bg-page-end));">
+  <div class="max-w-md mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+88px)]">
+    <section id="loginView" class="min-h-[84vh] flex items-center">
+      <div class="w-full card-soft rounded-3xl p-5">
+        <h1 class="text-3xl font-semibold tracking-tight">Leda</h1>
+        <p class="text-xs text-slate-500 mt-1 mb-4">Cloud Edition · Bmob</p>
+        <form id="loginForm" class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium mb-1">显示名</label>
+            <input id="loginName" class="w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="例如：sunyihan / 可欣" required />
+          </div>
+          <div>
+            <label class="block text-xs font-medium mb-1">密码</label>
+            <input id="loginPassword" type="password" class="w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="请输入测试密码" required />
+          </div>
+          <button id="loginBtn" class="w-full rounded-2xl btn-primary py-2.5 text-sm font-semibold active:scale-95 transition-transform duration-200">进入系统</button>
+          <p class="text-xs text-slate-500">测试账号：sunyihan/admin123，teacher/teacher123，ta/ta123，kexin/123456</p>
+        </form>
+      </div>
+    </section>
+
+    <section id="appView" class="hidden">
+      <header class="sticky top-0 z-20 backdrop-blur py-3" style="background:var(--header-bg);">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-semibold tracking-tight">Leda</h1>
+            <p id="roleLabel" class="text-xs text-slate-500"></p>
+          </div>
+          <button id="logoutBtn" class="rounded-xl btn-secondary px-3 py-1.5 text-xs active:scale-95 transition-transform duration-200">退出</button>
+        </div>
+      </header>
+
+      <section id="peopleTab" class="hidden">
+        <div class="card-soft rounded-3xl p-4">
+          <h2 class="text-sm font-semibold mb-3">人员管理（Student）</h2>
+          <form id="addStudentForm" class="grid grid-cols-2 gap-2 mb-3">
+            <input id="newStudentName" class="col-span-2 rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="学生姓名" />
+            <input id="newStudentRole" class="rounded-2xl border border-slate-200 px-3 py-2 text-sm bg-slate-50" value="student" readonly />
+            <button id="addStudentBtn" class="rounded-2xl btn-primary text-sm py-2 active:scale-95 transition-transform duration-200">新增学生</button>
+          </form>
+          <div id="studentList" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <section id="boardTab" class="hidden space-y-3">
+        <div class="card-soft rounded-3xl p-4">
+          <div id="boardHeaderRow" class="flex items-center justify-between mb-2">
+            <h2 class="text-sm font-semibold">作业看板</h2>
+            <select id="boardStudentFilter" class="rounded-xl border border-slate-200 px-2 py-1 text-xs"></select>
+          </div>
+          <div id="boardSummary" class="grid grid-cols-4 gap-2 mb-3"></div>
+
+          <div id="singleStudentBoard">
+            <div id="todayFocusPanel" class="hidden rounded-2xl bg-amber-50 border border-amber-200 p-3 mb-3">
+              <div class="flex items-center justify-between mb-1">
+                <p class="text-xs font-semibold text-amber-700">今日必做</p>
+                <span id="todayFocusCount" class="text-[11px] px-2 py-0.5 rounded-full bg-white border border-amber-200 text-amber-700"></span>
+              </div>
+              <div id="todayFocusList" class="space-y-2"></div>
+            </div>
+            <div class="rounded-2xl bg-indigo-50 border border-indigo-100 p-3 mb-3">
+              <div class="flex items-center justify-between mb-1">
+                <p class="text-xs font-semibold text-indigo-700">Pinned 置顶区</p>
+                <span id="pinnedCount" class="text-[11px] px-2 py-0.5 rounded-full bg-white border border-indigo-100 text-indigo-600"></span>
+              </div>
+              <div id="pinnedList" class="space-y-2"></div>
+            </div>
+            <div id="taskList" class="space-y-2"></div>
+          </div>
+
+          <div id="teacherAccordionBoard" class="hidden space-y-2">
+            <div id="accordionList" class="space-y-2"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="assignTab" class="hidden space-y-3">
+        <div id="assignCard" class="hidden card-soft rounded-3xl p-4">
+          <h3 class="text-sm font-semibold mb-2">布置作业（手动）</h3>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <button id="useRecentTemplateBtn" class="rounded-xl btn-secondary text-xs py-2 active:scale-95 transition-transform duration-200">复用上次模板</button>
+            <button id="saveTemplateBtn" class="rounded-xl btn-secondary text-xs py-2 active:scale-95 transition-transform duration-200">保存为最近模板</button>
+          </div>
+          <form id="assignForm" class="space-y-2">
+            <select id="assignStudent" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"></select>
+            <input id="assignTitle" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="作业标题" />
+            <div class="grid grid-cols-2 gap-2">
+              <select id="assignType" class="rounded-2xl border border-slate-200 px-3 py-2 text-sm"></select>
+              <input id="assignDate" type="date" class="rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <input id="assignTime" type="time" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button" data-quick-ddl="today22" class="rounded-xl btn-secondary text-xs py-2">今晚22:00</button>
+              <button type="button" data-quick-ddl="tomorrow22" class="rounded-xl btn-secondary text-xs py-2">明晚22:00</button>
+              <button type="button" data-quick-ddl="sunday20" class="rounded-xl btn-secondary text-xs py-2">周日20:00</button>
+            </div>
+            <button id="assignBtn" class="w-full rounded-2xl btn-primary py-2.5 text-sm font-semibold active:scale-95 transition-transform duration-200">发布作业</button>
+          </form>
+        </div>
+
+        <div id="bulkAssignCard" class="hidden card-soft rounded-3xl p-4">
+          <h3 class="text-sm font-semibold mb-2">布置作业（大段文字解析）</h3>
+          <textarea id="bulkText" rows="6" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="粘贴文本：&#10;1. C9-T2-S1 Questions 1-10&#10;2. Part 2 Topic: Travel"></textarea>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <input id="bulkFileInput" type="file" accept=".txt,.md,.csv,.json,.doc,.docx,.pdf,image/*" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-xs bg-white" />
+            <button id="loadBulkFileBtn" class="rounded-2xl btn-secondary py-2 text-sm active:scale-95 transition-transform duration-200">从文件导入文本</button>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <select id="bulkStudent" class="rounded-2xl border border-slate-200 px-3 py-2 text-sm"></select>
+            <select id="bulkTypeFallback" class="rounded-2xl border border-slate-200 px-3 py-2 text-sm"></select>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <input id="bulkDate" type="date" class="rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
+            <input id="bulkTime" type="time" class="rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <button id="parseBtn" class="rounded-2xl border border-slate-300 bg-white py-2 text-sm active:scale-95 transition-transform duration-200">解析文本</button>
+            <button id="importParsedBtn" class="rounded-2xl btn-primary py-2 text-sm active:scale-95 transition-transform duration-200">导入作业</button>
+          </div>
+          <div id="parsedPreview" class="space-y-2 mt-3"></div>
+        </div>
+      </section>
+
+      <section id="remindersTab" class="hidden">
+        <div class="card-soft rounded-3xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold">快捷催收（12小时内/逾期）</h2>
+            <button id="exportRemindersBtn" class="rounded-xl btn-secondary px-3 py-1.5 text-xs">导出文案</button>
+          </div>
+          <div id="reminderList" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <section id="profileTab" class="hidden space-y-3">
+        <div class="card-soft rounded-3xl p-4">
+          <h2 class="text-sm font-semibold mb-3">用户中心</h2>
+          <p id="profileWhoami" class="text-xs text-slate-500 mb-3"></p>
+          <form id="profilePasswordForm" class="space-y-2">
+            <input id="profileOldPassword" type="password" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="当前密码" />
+            <input id="profileNewPassword" type="password" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="新密码（至少6位）" />
+            <input id="profileConfirmPassword" type="password" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="确认新密码" />
+            <button id="profilePasswordBtn" class="w-full rounded-2xl btn-primary py-2.5 text-sm font-semibold active:scale-95 transition-transform duration-200">重置我的密码</button>
+          </form>
+          <p id="profileSecurityStatus" class="text-xs text-slate-500 mt-3"></p>
+        </div>
+        <div class="card-soft rounded-3xl p-4">
+          <h3 class="text-sm font-semibold mb-2">显示偏好</h3>
+          <form id="prefsForm" class="space-y-2">
+            <select id="prefsTheme" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm">
+              <option value="violet-sky">轻松紫蓝</option>
+              <option value="mint">薄荷绿</option>
+              <option value="peach">蜜桃橙</option>
+            </select>
+            <select id="prefsFontSize" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm">
+              <option value="14">标准字体</option>
+              <option value="15">稍大字体</option>
+              <option value="16">大字体</option>
+            </select>
+            <button id="prefsSaveBtn" class="w-full rounded-2xl btn-secondary py-2 text-sm">保存显示偏好</button>
+          </form>
+          <p id="prefsPreview" class="text-sm text-slate-600 mt-2">预览：The quick brown fox · 今晚22:00 提醒</p>
+        </div>
+        <div id="adminResetCard" class="hidden card-soft rounded-3xl p-4">
+          <h3 class="text-sm font-semibold mb-2">管理员重置密码</h3>
+          <form id="adminResetForm" class="space-y-2">
+            <select id="adminResetTarget" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"></select>
+            <input id="adminResetPassword" type="password" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="新密码（默认建议 123456）" />
+            <button id="adminResetBtn" class="w-full rounded-2xl bg-violet-600 text-white py-2.5 text-sm font-semibold active:scale-95 transition-transform duration-200">为该用户重置密码</button>
+          </form>
+          <p class="text-[11px] text-slate-500 mt-2">提示：仅能重置系统内置测试账号（如 teacher/ta/kexin）。</p>
+        </div>
+        <div id="adminLogCard" class="hidden card-soft rounded-3xl p-4">
+          <h3 class="text-sm font-semibold mb-2">管理员操作日志</h3>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <select id="adminLogType" class="rounded-2xl border border-slate-200 px-3 py-2 text-sm">
+              <option value="all">全部类型</option>
+              <option value="reset">重置密码</option>
+              <option value="profile">用户改密</option>
+            </select>
+            <button id="adminLogRefreshBtn" class="rounded-2xl btn-secondary text-sm py-2">刷新日志</button>
+          </div>
+          <button id="adminLogExportBtn" class="w-full rounded-2xl btn-secondary text-sm py-2 mb-2">导出日志</button>
+          <div id="adminLogList" class="space-y-2"></div>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur">
+    <div id="bottomTabs" class="mx-auto max-w-md grid gap-2 px-3 py-2 pb-[calc(env(safe-area-inset-bottom)+8px)]"></div>
+  </nav>
+
+  <div id="sheetBackdrop" class="hidden fixed inset-0 bg-slate-900/35 z-40"></div>
+  <section id="messageSheet" class="sheet fixed left-0 right-0 bottom-0 z-50 mx-auto max-w-md">
+    <div class="bg-white rounded-t-3xl border-t border-slate-200 shadow-md p-4 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+      <div class="w-10 h-1 rounded-full bg-slate-200 mx-auto mb-3"></div>
+      <h3 class="text-sm font-semibold mb-3">发送留言 / 提醒</h3>
+      <form id="messageForm" class="space-y-3">
+        <textarea id="messageContent" rows="4" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="请输入留言内容"></textarea>
+        <select id="messageAssignment" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"></select>
+        <label class="flex items-center justify-between rounded-2xl border border-slate-200 px-3 py-2.5">
+          <span class="text-sm">手动 Pin</span>
+          <input id="messagePinned" type="checkbox" class="h-4 w-4 accent-indigo-600" />
+        </label>
+        <button id="sendMessageBtn" class="w-full rounded-2xl bg-slate-900 text-white py-2.5 text-sm font-semibold active:scale-95 transition-transform duration-200">发送并保存</button>
+      </form>
+    </div>
+  </section>
+
+  <div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 bottom-[calc(env(safe-area-inset-bottom)+88px)] z-[60] rounded-full bg-slate-900 text-white text-xs px-4 py-2 shadow-md"></div>
+
+  <script>
+    // =========================
+    // Bmob 初始化（请手动填入）
+    // 注意：优先使用 Application ID + REST API Key
+    // 若你加载到旧版 SDK，可能会要求 Secret Key + REST API Key
+    // =========================
+    const BMOB_APP_ID = "f74c68265e79d66f5198b26b50817da8";
+    const BMOB_REST_KEY = "1cc323ea834a902caae400d3ec77aeff";
+    const BMOB_SECRET_KEY_FALLBACK = "531fbf41f727bcbf"; // 可选：仅当旧版 SDK 报 secret key 错误时填写
+    const BMOB_SAFE_TOKEN = "20040409wsun4336"; // 在 Bmob 控制台-应用设置-安全设置 中查看
+    let BMOB_READY = false;
+    const BMOB_FALLBACK_SDKS = [
+      "./bmob.min.js",
+      "https://cdn.bmob.cn/sdk/js/3.2.5/bmob-min.js",
+      "https://unpkg.com/hydrogen-js-sdk/dist/hydrogen.min.js",
+      "https://cdn.jsdelivr.net/npm/hydrogen-js-sdk/dist/hydrogen.min.js",
+      "https://cdn.bootcdn.net/ajax/libs/hydrogen-js-sdk/3.25.0/hydrogen.min.js"
+    ];
+    const SESSION_KEY = "leda-session-user-v1";
+    const PREFS_KEY = "leda-ui-prefs-v1";
+    let BMOB_INIT_ATTEMPTED = false;
+
+    function keyReady() {
+      return (
+        typeof BMOB_APP_ID === "string" &&
+        typeof BMOB_REST_KEY === "string" &&
+        typeof BMOB_SAFE_TOKEN === "string" &&
+        BMOB_APP_ID.length > 8 &&
+        BMOB_REST_KEY.length > 8 &&
+        BMOB_SAFE_TOKEN.length > 6 &&
+        !BMOB_APP_ID.includes("请填写") &&
+        !BMOB_REST_KEY.includes("请填写") &&
+        !BMOB_SAFE_TOKEN.includes("请填写")
+      );
+    }
+    function fallbackKeyReady() {
+      return (
+        typeof BMOB_SECRET_KEY_FALLBACK === "string" &&
+        BMOB_SECRET_KEY_FALLBACK.length > 6 &&
+        !BMOB_SECRET_KEY_FALLBACK.includes("请填写")
+      );
+    }
+
+    function loadScript(url) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = /^http:\/\//i.test(url) ? url.replace(/^http:\/\//i, "https://") : url;
+        s.async = true;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    async function ensureBmobReady() {
+      if (BMOB_READY) return true;
+      if (!keyReady()) throw new Error("请先正确填写 Bmob Key");
+
+      if (typeof Bmob === "undefined") {
+        for (const cdn of BMOB_FALLBACK_SDKS) {
+          try {
+            await loadScript(cdn);
+            if (typeof Bmob !== "undefined") break;
+          } catch {}
+        }
+      }
+
+      if (typeof Bmob === "undefined") {
+        throw new Error("Bmob SDK 加载失败（请将 bmob.min.js 放到同目录）");
+      }
+
+      const candidates = [
+        { args: [BMOB_SECRET_KEY_FALLBACK, BMOB_SAFE_TOKEN], label: "SecretKey+SafeToken" },
+        { args: [BMOB_SECRET_KEY_FALLBACK, BMOB_SAFE_TOKEN, BMOB_REST_KEY], label: "SecretKey+SafeToken+REST" },
+        { args: [BMOB_APP_ID, BMOB_SAFE_TOKEN], label: "ApplicationID+SafeToken" },
+        { args: [BMOB_APP_ID, BMOB_REST_KEY, BMOB_SAFE_TOKEN], label: "ApplicationID+REST+SafeToken" },
+        { args: [BMOB_APP_ID, BMOB_REST_KEY], label: "ApplicationID+REST" }
+      ];
+      if (fallbackKeyReady()) {
+        candidates.push({ args: [BMOB_SECRET_KEY_FALLBACK, BMOB_REST_KEY, BMOB_SAFE_TOKEN], label: "SecretKey+REST+SafeToken" });
+      }
+
+      let lastErr = null;
+      const attemptLogs = [];
+      for (const c of candidates) {
+        try {
+          if (!BMOB_INIT_ATTEMPTED) {
+            Bmob.initialize(...c.args);
+            BMOB_INIT_ATTEMPTED = true;
+          }
+          // 关键：initialize 可能不立即报错，必须发一次真实请求验证签名
+          // 用业务表 Student 探测，避免 User 系统表在部分环境下报 object not found 误判
+          try {
+            const probe = Bmob.Query("Student");
+            probe.limit(1);
+            await probe.find();
+          } catch (probeErr) {
+            const msg = debugErr(probeErr, "");
+            // 表未创建不应判定为初始化失败，后续会在业务提示里暴露
+            if (!/object not found/i.test(msg)) throw probeErr;
+          }
+          BMOB_READY = true;
+          return true;
+        } catch (err) {
+          lastErr = err;
+          attemptLogs.push(`${c.label}: ${debugErr(err)}`);
+          BMOB_READY = false;
+          BMOB_INIT_ATTEMPTED = false;
+        }
+      }
+      throw new Error(`Bmob 初始化失败：${debugErr(lastErr, "请检查 Key 或清理缓存后重试")}；尝试记录：${attemptLogs.join(" | ")}`);
+    }
+
+    const ROLE = { ADMIN: "admin", TA: "ta", TEACHER: "teacher", STUDENT: "student" };
+    const TYPE_META = {
+      listening: { icon: "🎧", label: "听力", teacher: "Katia" },
+      writing: { icon: "✍️", label: "写作", teacher: "Katia" },
+      reading: { icon: "📚", label: "阅读", teacher: "Louise" },
+      speaking: { icon: "🎙️", label: "口语", teacher: "Louise" },
+      vocab: { icon: "🧠", label: "词汇", teacher: "Louise" }
+    };
+    const STATUS_META = {
+      pending: { label: "待完成", cls: "text-amber-600 bg-amber-50 border-amber-200" },
+      completed: { label: "已完成", cls: "text-emerald-600 bg-emerald-50 border-emerald-200" }
+    };
+
+    const TEST_ACCOUNTS = {
+      sunyihan: { role: ROLE.ADMIN, password: "admin123", passwordUpdatedAt: new Date().toISOString(), isDefaultPassword: false },
+      teacher: { role: ROLE.TEACHER, password: "teacher123", passwordUpdatedAt: new Date().toISOString(), isDefaultPassword: false },
+      ta: { role: ROLE.TA, password: "ta123", passwordUpdatedAt: new Date().toISOString(), isDefaultPassword: false },
+      kexin: { role: ROLE.STUDENT, password: "123456", displayName: "可欣", passwordUpdatedAt: null, isDefaultPassword: true },
+      zihan: { role: ROLE.STUDENT, password: "123456", displayName: "子涵", passwordUpdatedAt: null, isDefaultPassword: true },
+      huake: { role: ROLE.STUDENT, password: "123456", displayName: "华柯", passwordUpdatedAt: null, isDefaultPassword: true }
+    };
+
+    let sessionUser = null;
+    let activeTab = "board";
+    let selectedMessageStudent = null;
+    let parsedDraft = [];
+    let recentAssignTemplate = null;
+    let uiPrefs = { theme: "violet-sky", fontSize: "14" };
+
+    // 云端数据缓存（每次请求后刷新）
+    let students = [];
+    let assignments = [];
+    let messages = [];
+
+    function showToast(text) {
+      const t = document.getElementById("toast");
+      if (!t) return;
+      t.textContent = text;
+      t.classList.remove("hidden");
+      setTimeout(() => t.classList.add("hidden"), 1300);
+    }
+    function saveSession() {
+      try {
+        if (sessionUser) localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
+        else localStorage.removeItem(SESSION_KEY);
+      } catch {}
+    }
+    function loadSession() {
+      try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+    function savePrefs() {
+      try {
+        localStorage.setItem(PREFS_KEY, JSON.stringify(uiPrefs));
+      } catch {}
+    }
+    function loadPrefs() {
+      try {
+        const raw = localStorage.getItem(PREFS_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+    function downloadTextFile(filename, content) {
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        a.remove();
+      }, 100);
+    }
+    function fmtDateTime(iso) {
+      return new Date(iso).toLocaleString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+    function localDateStr(d) {
+      const t = new Date(d);
+      return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+    }
+    function studentByName(name) { return students.find((s) => s.name === name); }
+    function canManagePeople(u) { return u && u.role === ROLE.ADMIN && u.name === "sunyihan"; }
+    function canAssign(u) { return u && [ROLE.ADMIN, ROLE.TA, ROLE.TEACHER].includes(u.role); }
+    function canManageStatus(u) { return u && [ROLE.ADMIN, ROLE.TA, ROLE.TEACHER].includes(u.role); }
+    function canQuickRemind(u) { return u && [ROLE.ADMIN, ROLE.TA].includes(u.role); }
+    function canSendPinMessage(u) { return u && [ROLE.ADMIN, ROLE.TA, ROLE.TEACHER].includes(u.role); }
+    function isStudentRecord(s) { return (s?.role || "student") === "student"; }
+    function findAccountKeyByName(name) {
+      const lower = String(name || "").toLowerCase();
+      return Object.keys(TEST_ACCOUNTS).find((k) => {
+        const a = TEST_ACCOUNTS[k];
+        return k.toLowerCase() === lower || (a.displayName && a.displayName === name);
+      }) || null;
+    }
+
+    function setBtnLoading(btn, isLoading, textLoading, textNormal) {
+      if (!btn) return;
+      btn.disabled = isLoading;
+      btn.textContent = isLoading ? textLoading : textNormal;
+      btn.classList.toggle("opacity-60", isLoading);
+    }
+    function toggleHidden(id, hidden) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle("hidden", hidden);
+    }
+    function listLoading(targetId, text = "加载中...") {
+      const box = document.getElementById(targetId);
+      if (!box) return;
+      box.innerHTML = `
+        <div class="flex items-center gap-2 text-xs text-slate-500 mb-2"><span class="spinner"></span>${text}</div>
+        <div class="h-10 rounded-xl skeleton mb-2"></div>
+        <div class="h-10 rounded-xl skeleton"></div>
+      `;
+    }
+    function errMsg(err, fallback = "未知错误") {
+      return err?.message || err?.error || fallback;
+    }
+    function applyUiPrefs() {
+      const root = document.documentElement;
+      if (uiPrefs.theme === "mint") {
+        root.style.setProperty("--bg-page-start", "#ecfeff");
+        root.style.setProperty("--bg-page-end", "#ecfdf5");
+        root.style.setProperty("--header-bg", "rgba(204, 251, 241, 0.9)");
+        root.style.setProperty("--brand", "#0ea5a4");
+        root.style.setProperty("--brand-strong", "#0f766e");
+      } else if (uiPrefs.theme === "peach") {
+        root.style.setProperty("--bg-page-start", "#fff7ed");
+        root.style.setProperty("--bg-page-end", "#fff1f2");
+        root.style.setProperty("--header-bg", "rgba(255, 237, 213, 0.9)");
+        root.style.setProperty("--brand", "#f97316");
+        root.style.setProperty("--brand-strong", "#ea580c");
+      } else {
+        root.style.setProperty("--bg-page-start", "#f5f3ff");
+        root.style.setProperty("--bg-page-end", "#ecfeff");
+        root.style.setProperty("--header-bg", "rgba(237, 233, 254, 0.9)");
+        root.style.setProperty("--brand", "#6366f1");
+        root.style.setProperty("--brand-strong", "#4f46e5");
+      }
+      document.documentElement.style.fontSize = `${uiPrefs.fontSize}px`;
+      const preview = document.getElementById("prefsPreview");
+      if (preview) preview.textContent = `预览（${uiPrefs.fontSize}px）：The quick brown fox · 今晚22:00 提醒`;
+    }
+    function debugErr(err, fallback = "未知错误") {
+      if (!err) return fallback;
+      if (typeof err === "string") return err;
+      if (err.message) return err.message;
+      if (err.error) return err.error;
+      try {
+        return JSON.stringify(err);
+      } catch {
+        return fallback;
+      }
+    }
+
+    // -------------------------
+    // Bmob CRUD - Student 表
+    // -------------------------
+    async function fetchStudents() {
+      await ensureBmobReady();
+      const query = Bmob.Query("Student");
+      query.order("createdAt");
+      const res = await query.find();
+      return res.map((x) => ({ id: x.objectId, name: x.name, role: x.role || "student" }));
+    }
+    async function createStudent(name) {
+      await ensureBmobReady();
+      const query = Bmob.Query("Student");
+      return query.save({ name, role: "student" });
+    }
+    async function deleteStudentByName(name) {
+      await ensureBmobReady();
+      const query = Bmob.Query("Student");
+      query.equalTo("name", "==", name);
+      const all = await query.find();
+      for (const row of all) {
+        const q = Bmob.Query("Student");
+        await q.destroy(row.objectId);
+      }
+    }
+
+    // ----------------------------
+    // Bmob CRUD - Assignment 表
+    // ----------------------------
+    async function fetchAssignments() {
+      await ensureBmobReady();
+      const query = Bmob.Query("Assignment");
+      query.order("deadline");
+      const res = await query.find();
+      return res.map((x) => ({
+        id: x.objectId,
+        title: x.title,
+        type: x.type,
+        deadline: x.deadline,
+        studentName: x.studentName,
+        status: x.status || "pending"
+      }));
+    }
+    async function createAssignment(payload) {
+      await ensureBmobReady();
+      const query = Bmob.Query("Assignment");
+      return query.save(payload);
+    }
+    async function updateAssignmentStatus(id, status) {
+      await ensureBmobReady();
+      const query = Bmob.Query("Assignment");
+      return query.set(id, { status });
+    }
+
+    // -------------------------
+    // Bmob CRUD - Message 表
+    // -------------------------
+    async function fetchMessages() {
+      await ensureBmobReady();
+      const query = Bmob.Query("Message");
+      query.order("-createdAt");
+      const res = await query.find();
+      return res.map((x) => ({
+        id: x.objectId,
+        content: x.content,
+        sender: x.sender,
+        assignmentTitle: x.assignmentTitle || "",
+        isPinned: !!x.isPinned,
+        studentName: x.studentName,
+        createdAt: x.createdAt
+      }));
+    }
+    async function createMessage(payload) {
+      await ensureBmobReady();
+      const query = Bmob.Query("Message");
+      return query.save(payload);
+    }
+    async function appendAuditLog(logType, action, actor, target = "") {
+      try {
+        await createMessage({
+          content: `[AUDIT:${logType}] ${action}${target ? ` | target=${target}` : ""}`,
+          sender: actor,
+          assignmentTitle: "",
+          isPinned: false,
+          studentName: "__SYSTEM__"
+        });
+      } catch {}
+    }
+
+    // 统一拉取
+    async function refreshCloudData() {
+      const [s, a, m] = await Promise.all([fetchStudents(), fetchAssignments(), fetchMessages()]);
+      students = s;
+      assignments = a;
+      messages = m;
+    }
+
+    function getTabsByRole(u) {
+      if (!u) return [];
+      if (u.role === ROLE.STUDENT) return [{ id: "board", label: "作业看板" }, { id: "profile", label: "用户中心" }];
+      if (u.role === ROLE.TEACHER) return [{ id: "board", label: "作业看板" }, { id: "assign", label: "布置作业" }, { id: "profile", label: "用户中心" }];
+      if (u.role === ROLE.TA) return [{ id: "board", label: "作业看板" }, { id: "assign", label: "布置作业" }, { id: "reminders", label: "快捷催收" }, { id: "profile", label: "用户中心" }];
+      return [{ id: "people", label: "人员管理" }, { id: "board", label: "作业看板" }, { id: "assign", label: "布置作业" }, { id: "reminders", label: "快捷催收" }, { id: "profile", label: "用户中心" }];
+    }
+
+    function renderBottomTabs() {
+      const tabs = getTabsByRole(sessionUser);
+      const box = document.getElementById("bottomTabs");
+      box.style.gridTemplateColumns = `repeat(${tabs.length}, minmax(0,1fr))`;
+      box.innerHTML = tabs.map((tb) => `
+        <button data-tab="${tb.id}" class="tab-btn rounded-2xl py-2 text-xs font-semibold active:scale-95 transition-transform duration-200 ${activeTab === tb.id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"}">${tb.label}</button>
+      `).join("");
+      document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
+        activeTab = btn.dataset.tab;
+        setTab(activeTab);
+      }));
+    }
+
+    function setTab(tabId) {
+      const allowed = getTabsByRole(sessionUser).map((x) => x.id);
+      if (!allowed.includes(tabId)) tabId = allowed[0] || "board";
+      activeTab = tabId;
+      toggleHidden("peopleTab", tabId !== "people");
+      toggleHidden("boardTab", tabId !== "board");
+      toggleHidden("assignTab", tabId !== "assign");
+      toggleHidden("remindersTab", tabId !== "reminders");
+      toggleHidden("profileTab", tabId !== "profile");
+      renderBottomTabs();
+      renderPeopleTab();
+      renderBoardTab();
+      renderAssignTab();
+      renderRemindersTab();
+      renderProfileTab();
+    }
+
+    function openMessageSheet(studentName) {
+      selectedMessageStudent = studentName;
+      const related = assignments
+        .filter((a) => a.studentName === studentName && a.status !== "completed")
+        .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+      const options = related.length
+        ? related.map((a) => `<option value="${a.title}">${a.title}（${fmtDateTime(a.deadline)}）</option>`).join("")
+        : `<option value="" disabled>该学生暂无可关联作业</option>`;
+      document.getElementById("messageAssignment").innerHTML = `<option value="">不关联作业</option>${options}`;
+      if (!related.length) showToast("该学生暂无可关联作业，可先发布作业或直接发送普通提醒");
+      const backdrop = document.getElementById("sheetBackdrop");
+      const sheet = document.getElementById("messageSheet");
+      if (backdrop) backdrop.classList.remove("hidden");
+      if (sheet) sheet.classList.add("open");
+    }
+    function closeMessageSheet() {
+      const backdrop = document.getElementById("sheetBackdrop");
+      const sheet = document.getElementById("messageSheet");
+      const form = document.getElementById("messageForm");
+      if (backdrop) backdrop.classList.add("hidden");
+      if (sheet) sheet.classList.remove("open");
+      if (form) form.reset();
+    }
+
+    async function renderPeopleTab() {
+      if (!canManagePeople(sessionUser)) return;
+      const target = "studentList";
+      listLoading(target, "加载学生列表...");
+      try {
+        students = await fetchStudents();
+        document.getElementById(target).innerHTML = students.length ? students.map((s) => {
+          const canReset = !!findAccountKeyByName(s.name);
+          return `
+          <div class="bg-slate-50 rounded-2xl border border-slate-200 p-3">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <p class="text-sm font-semibold">${s.name}</p>
+                <p class="text-xs text-slate-500">${s.role}</p>
+              </div>
+              <div class="flex items-center gap-1">
+                ${canReset ? `<button data-reset-user="${s.name}" class="px-2 h-8 rounded-xl bg-violet-50 text-violet-700 text-xs active:scale-95 transition-transform duration-200">重置密</button>` : ""}
+                <button data-del-student="${s.name}" class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 text-xs active:scale-95 transition-transform duration-200">删</button>
+              </div>
+            </div>
+          </div>
+        `;
+        }).join("") : `<p class="text-xs text-slate-500">暂无学生</p>`;
+
+        document.querySelectorAll("[data-del-student]").forEach((btn) => btn.addEventListener("click", async (e) => {
+          const name = e.currentTarget.dataset.delStudent;
+          try {
+            await deleteStudentByName(name);
+            await refreshCloudData();
+            await renderPeopleTab();
+            showToast("删除成功");
+          } catch (err) {
+            showToast(`删除失败：${errMsg(err)}`);
+          }
+        }));
+        document.querySelectorAll("[data-reset-user]").forEach((btn) => btn.addEventListener("click", (e) => {
+          const name = e.currentTarget.dataset.resetUser;
+          if (!canManagePeople(sessionUser)) return showToast("无权限");
+          const key = findAccountKeyByName(name);
+          if (!key) return showToast("该用户不是内置账号，暂不支持重置");
+          if (!confirm(`确认将 ${name} 的密码重置为 123456？`)) return;
+          TEST_ACCOUNTS[key].password = "123456";
+          TEST_ACCOUNTS[key].passwordUpdatedAt = new Date().toISOString();
+          TEST_ACCOUNTS[key].isDefaultPassword = true;
+          showToast(`已重置 ${name} 密码为 123456`);
+          appendAuditLog("reset", "人员管理重置密码", sessionUser.name, name);
+        }));
+      } catch (err) {
+        document.getElementById(target).innerHTML = `<p class="text-xs text-rose-500">加载失败：${errMsg(err)}</p>`;
+      }
+    }
+
+    async function renderBoardTab() {
+      listLoading("pinnedList", "加载置顶...");
+      listLoading("taskList", "加载作业...");
+      try {
+        await refreshCloudData();
+      } catch (err) {
+        showToast(`数据拉取失败：${err?.message || "未知错误"}`);
+        return;
+      }
+
+      const isTeacherLike = [ROLE.TEACHER, ROLE.ADMIN, ROLE.TA].includes(sessionUser.role);
+      const isStudentView = sessionUser.role === ROLE.STUDENT;
+      const now = new Date();
+      const in48h = new Date(now.getTime() + 48 * 3600000);
+      const totalCount = assignments.length;
+      const pendingCount = assignments.filter((x) => x.status !== "completed").length;
+      const overdueCount = assignments.filter((x) => x.status !== "completed" && new Date(x.deadline) < now).length;
+      const doneCount = assignments.filter((x) => x.status === "completed").length;
+      const doneRate = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
+      const summaryBox = document.getElementById("boardSummary");
+      if (summaryBox) {
+        summaryBox.innerHTML = `
+          <div class="rounded-2xl bg-white border border-slate-200 p-2"><p class="text-[11px] text-slate-500">总作业</p><p class="text-base font-semibold">${totalCount}</p></div>
+          <div class="rounded-2xl bg-amber-50 border border-amber-200 p-2"><p class="text-[11px] text-amber-700">待完成</p><p class="text-base font-semibold text-amber-700">${pendingCount}</p></div>
+          <div class="rounded-2xl bg-rose-50 border border-rose-200 p-2"><p class="text-[11px] text-rose-700">逾期</p><p class="text-base font-semibold text-rose-700">${overdueCount}</p></div>
+          <div class="rounded-2xl bg-emerald-50 border border-emerald-200 p-2"><p class="text-[11px] text-emerald-700">完成率</p><p class="text-base font-semibold text-emerald-700">${doneRate}%</p></div>
+        `;
+      }
+
+      document.getElementById("boardStudentFilter").classList.toggle("hidden", isTeacherLike);
+      document.getElementById("singleStudentBoard").classList.toggle("hidden", isTeacherLike);
+      document.getElementById("teacherAccordionBoard").classList.toggle("hidden", !isTeacherLike);
+
+      if (isTeacherLike) {
+        const grouped = students.filter(isStudentRecord).map((s) => {
+          const sTasks = assignments.filter((a) => a.studentName === s.name).sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+          const total = sTasks.length;
+          const done = sTasks.filter((x) => x.status === "completed").length;
+          const percent = total ? Math.round((done / total) * 100) : 0;
+          const sMessages = messages.filter((m) => m.studentName === s.name);
+          return { student: s, tasks: sTasks, total, done, percent, messages: sMessages };
+        });
+
+        const acc = document.getElementById("accordionList");
+        acc.innerHTML = grouped.map((g, idx) => {
+          const pinned = g.messages.filter((m) => {
+            if (m.isPinned) return true;
+            if (!m.assignmentTitle) return false;
+            const task = g.tasks.find((t) => t.title === m.assignmentTitle);
+            return task && localDateStr(task.deadline) === localDateStr(new Date());
+          }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+          return `
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+              <button data-acc-toggle="${idx}" class="w-full p-3 bg-white flex items-center gap-3 justify-between active:scale-[0.99] transition-transform duration-200">
+                <p class="text-sm font-semibold">${g.student.name}</p>
+                <div class="flex-1 mx-2">
+                  <div class="h-2 rounded-full bg-slate-200 overflow-hidden">
+                    <div class="h-full bg-emerald-500" style="width:${g.percent}%"></div>
+                  </div>
+                  <p class="text-[11px] text-slate-500 mt-1 text-left">${g.done}/${g.total} 已完成</p>
+                </div>
+                <span data-acc-chevron="${idx}" class="text-slate-400 text-xs">▾</span>
+              </button>
+              <div data-acc-body="${idx}" class="max-h-0 overflow-hidden transition-all duration-300">
+                <div class="p-3 space-y-2 border-t border-slate-200 bg-slate-50">
+                  <div class="rounded-2xl bg-indigo-50 border border-indigo-100 p-2.5">
+                    <div class="flex items-center justify-between mb-1">
+                      <p class="text-xs font-semibold text-indigo-700">Pinned 置顶区</p>
+                      ${canSendPinMessage(sessionUser) ? `<button data-msg-student="${g.student.name}" class="rounded-lg bg-indigo-100 text-indigo-700 text-[11px] px-2 py-1 active:scale-95 transition-transform duration-200">💬 留言/Pin</button>` : ""}
+                    </div>
+                    ${pinned.length ? pinned.map((m) => {
+                      const linked = m.assignmentTitle ? g.tasks.find((t) => t.title === m.assignmentTitle) : null;
+                      const urgent = !!(linked && localDateStr(linked.deadline) === localDateStr(new Date()));
+                      const senderKey = findAccountKeyByName(m.sender);
+                      const senderRole = senderKey ? TEST_ACCOUNTS[senderKey]?.role : "";
+                      const senderTag = senderRole ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">${senderRole}</span>` : "";
+                      return `<div class="bg-white rounded-xl border ${urgent ? "border-rose-200" : "border-indigo-100"} p-2 mb-1 last:mb-0"><div class="flex items-center justify-between gap-2"><p class="text-xs">${m.content}</p><div class="flex items-center gap-1">${senderTag}${urgent ? '<span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">系统紧急提醒</span>' : ''}</div></div><p class="text-[11px] text-slate-500 mt-1">${m.sender} · ${fmtDateTime(m.createdAt)}</p></div>`;
+                    }).join("") : '<p class="text-xs text-slate-500">暂无置顶</p>'}
+                  </div>
+                  ${g.tasks.length ? g.tasks.map((a) => {
+                    const st = STATUS_META[a.status] || STATUS_META.pending;
+                    const ty = TYPE_META[a.type] || TYPE_META.reading;
+                    return `<div class="bg-white rounded-2xl border border-slate-200 p-3"><div class="flex items-start justify-between gap-2"><div><p class="text-sm font-semibold">${ty.icon} ${a.title}</p><p class="text-xs text-slate-500 mt-1">${ty.label} · ${ty.teacher} · 截止 ${fmtDateTime(a.deadline)}</p></div><div class="flex items-center gap-1">${canSendPinMessage(sessionUser) ? `<button data-msg-student="${a.studentName}" class="rounded-lg bg-indigo-100 text-indigo-700 text-[11px] px-2 py-1 active:scale-95 transition-transform duration-200">留言/Pin</button>` : ""}<button data-toggle-status="${a.id}" class="text-[11px] border px-2 py-0.5 rounded-full ${st.cls} active:scale-95 transition-transform duration-200">${st.label}</button></div></div></div>`;
+                  }).join("") : '<p class="text-xs text-slate-500">暂无作业</p>'}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        document.querySelectorAll("[data-acc-toggle]").forEach((btn) => btn.addEventListener("click", (e) => {
+          const idx = e.currentTarget.dataset.accToggle;
+          const body = document.querySelector(`[data-acc-body="${idx}"]`);
+          const ch = document.querySelector(`[data-acc-chevron="${idx}"]`);
+          const open = body.style.maxHeight && body.style.maxHeight !== "0px";
+          body.style.maxHeight = open ? "0px" : `${body.scrollHeight}px`;
+          ch.style.transform = open ? "rotate(0deg)" : "rotate(180deg)";
+          ch.style.transition = "transform 300ms";
+        }));
+        const firstBody = document.querySelector('[data-acc-body="0"]');
+        const firstChevron = document.querySelector('[data-acc-chevron="0"]');
+        if (firstBody && firstChevron && firstBody.style.maxHeight !== `${firstBody.scrollHeight}px`) {
+          firstBody.style.maxHeight = `${firstBody.scrollHeight}px`;
+          firstChevron.style.transform = "rotate(180deg)";
+          firstChevron.style.transition = "transform 300ms";
+        }
+
+        document.querySelectorAll("[data-toggle-status]").forEach((btn) => btn.addEventListener("click", async (e) => {
+          const id = e.currentTarget.dataset.toggleStatus;
+          const task = assignments.find((x) => x.id === id);
+          if (!task) return;
+          const next = task.status === "completed" ? "pending" : "completed";
+          e.currentTarget.disabled = true;
+          try {
+            await updateAssignmentStatus(id, next);
+            await renderBoardTab();
+            showToast("状态已切换");
+          } catch (err) {
+            showToast(`更新失败：${errMsg(err)}`);
+          }
+        }));
+        document.querySelectorAll("[data-msg-student]").forEach((btn) => btn.addEventListener("click", (e) => {
+          openMessageSheet(e.currentTarget.dataset.msgStudent);
+        }));
+        return;
+      }
+
+      const listStudents = isStudentView
+        ? students.filter((s) => isStudentRecord(s) && s.name === sessionUser.name)
+        : students.filter(isStudentRecord);
+
+      const filter = document.getElementById("boardStudentFilter");
+      const prev = filter.value;
+      filter.innerHTML = listStudents.map((s) => `<option value="${s.name}">${s.name}</option>`).join("");
+      if (prev && listStudents.some((s) => s.name === prev)) filter.value = prev;
+      const studentName = filter.value || listStudents[0]?.name;
+      if (!studentName) {
+        document.getElementById("pinnedList").innerHTML = `<p class="text-xs text-slate-500">暂无置顶</p>`;
+        document.getElementById("taskList").innerHTML = `<p class="text-xs text-slate-500">暂无作业</p>`;
+        return;
+      }
+
+      const studentTasksRaw = assignments.filter((a) => a.studentName === studentName);
+      const today = localDateStr(new Date());
+      const todayFocusTasks = studentTasksRaw
+        .filter((a) => a.status !== "completed" && localDateStr(a.deadline) === today)
+        .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+      const urgentTasks = studentTasksRaw.filter((a) => a.status !== "completed" && new Date(a.deadline) <= in48h);
+      const pendingTasks = studentTasksRaw.filter((a) => a.status !== "completed" && new Date(a.deadline) > in48h);
+      const completedTasks = studentTasksRaw.filter((a) => a.status === "completed");
+      const studentTasks = [...urgentTasks, ...pendingTasks, ...completedTasks].sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+      const focusPanel = document.getElementById("todayFocusPanel");
+      const focusCount = document.getElementById("todayFocusCount");
+      const focusList = document.getElementById("todayFocusList");
+      const showFocus = isStudentView || !isTeacherLike;
+      if (focusPanel) focusPanel.classList.toggle("hidden", !showFocus);
+      if (focusCount) focusCount.textContent = `${todayFocusTasks.length} 项`;
+      if (focusList) {
+        focusList.innerHTML = todayFocusTasks.length
+          ? todayFocusTasks.map((a) => {
+            const ty = TYPE_META[a.type] || TYPE_META.reading;
+            return `<div class="bg-white rounded-xl border border-amber-200 p-2"><p class="text-sm font-medium">${ty.icon} ${a.title}</p><p class="text-xs text-slate-500 mt-0.5">截止 ${fmtDateTime(a.deadline)}</p></div>`;
+          }).join("")
+          : `<p class="text-xs text-slate-500">今日暂无必须完成项</p>`;
+      }
+
+      // 关键逻辑：若留言关联作业且该作业今天截止，则在渲染时强制置顶并标记系统紧急提醒
+      const pinned = messages
+        .filter((m) => m.studentName === studentName && (m.isPinned || (() => {
+          if (!m.assignmentTitle) return false;
+          const task = studentTasks.find((t) => t.title === m.assignmentTitle);
+          return task && localDateStr(task.deadline) === today;
+        })()))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      document.getElementById("pinnedCount").textContent = `${pinned.length} 条`;
+      document.getElementById("pinnedList").innerHTML = pinned.length ? pinned.map((m) => {
+        const linked = m.assignmentTitle ? studentTasks.find((t) => t.title === m.assignmentTitle) : null;
+        const isUrgent = !!(linked && localDateStr(linked.deadline) === today);
+        const senderKey = findAccountKeyByName(m.sender);
+        const senderRole = senderKey ? TEST_ACCOUNTS[senderKey]?.role : "";
+        const senderTag = senderRole ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">${senderRole}</span>` : "";
+        return `
+          <div class="bg-white rounded-2xl border ${isUrgent ? "border-rose-200" : "border-indigo-100"} p-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-xs">${m.content}</p>
+              <div class="flex items-center gap-1">${senderTag}${isUrgent ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">系统紧急提醒</span>` : ""}</div>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">${m.sender} · ${fmtDateTime(m.createdAt)}</p>
+          </div>
+        `;
+      }).join("") : `<p class="text-xs text-slate-500">暂无置顶</p>`;
+
+      const canStatus = canManageStatus(sessionUser);
+      const canMsg = canSendPinMessage(sessionUser);
+      document.getElementById("taskList").innerHTML = studentTasks.length ? studentTasks.map((a) => {
+        const st = STATUS_META[a.status] || STATUS_META.pending;
+        const ty = TYPE_META[a.type] || TYPE_META.reading;
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 p-3">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <p class="text-sm font-semibold">${ty.icon} ${a.title}</p>
+                <p class="text-xs text-slate-500 mt-1">${ty.label} · ${ty.teacher} · 截止 ${fmtDateTime(a.deadline)}</p>
+              </div>
+              <span class="text-[11px] border px-2 py-0.5 rounded-full ${st.cls}">${st.label}</span>
+            </div>
+            ${(canStatus || canMsg) ? `<div class="mt-2 grid grid-cols-2 gap-2">
+              ${canStatus ? `
+                <select data-task-status="${a.id}" class="rounded-xl border border-slate-200 px-2 py-1.5 text-xs">
+                  <option value="pending" ${a.status === "pending" ? "selected" : ""}>待完成</option>
+                  <option value="completed" ${a.status === "completed" ? "selected" : ""}>已完成</option>
+                </select>
+              ` : `<span></span>`}
+              ${canMsg ? `<button data-msg-student="${a.studentName}" class="rounded-xl bg-indigo-100 text-indigo-700 text-xs active:scale-95 transition-transform duration-200">💬 留言/Pin</button>` : `<span></span>`}
+            </div>` : ""}
+          </div>
+        `;
+      }).join("") : `<p class="text-xs text-slate-500">暂无作业</p>`;
+
+      document.querySelectorAll("[data-task-status]").forEach((sel) => sel.addEventListener("change", async (e) => {
+        const id = e.currentTarget.dataset.taskStatus;
+        const status = e.currentTarget.value;
+        e.currentTarget.disabled = true;
+        try {
+          await updateAssignmentStatus(id, status);
+          await renderBoardTab();
+          showToast("状态已更新");
+        } catch (err) {
+          showToast(`更新失败：${errMsg(err)}`);
+          e.currentTarget.disabled = false;
+        }
+      }));
+      document.querySelectorAll("[data-msg-student]").forEach((btn) => btn.addEventListener("click", (e) => {
+        openMessageSheet(e.currentTarget.dataset.msgStudent);
+      }));
+    }
+
+    function parseBulkText(text, fallbackType) {
+      const lines = text.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+      const rows = [];
+      for (const line of lines) {
+        if (!/^(\d+[\.、\)]|[-•])\s*/.test(line)) continue;
+        const title = line.replace(/^(\d+[\.、\)]|[-•])\s*/, "").trim();
+        if (!title) continue;
+        const lower = title.toLowerCase();
+        let type = fallbackType;
+        if (/听力|listening/.test(lower)) type = "listening";
+        else if (/阅读|reading/.test(lower)) type = "reading";
+        else if (/写作|writing/.test(lower)) type = "writing";
+        else if (/口语|speaking|part/.test(lower)) type = "speaking";
+        else if (/词汇|vocab|听写/.test(lower)) type = "vocab";
+        rows.push({ title, type });
+      }
+      return rows;
+    }
+
+    function renderParsedPreview() {
+      const box = document.getElementById("parsedPreview");
+      if (!box) return;
+      box.innerHTML = parsedDraft.length
+        ? parsedDraft.map((x, i) => `
+          <div class="rounded-2xl bg-slate-50 border border-slate-200 p-2.5 text-sm">
+            <div class="flex items-center justify-between gap-2">
+              <p>${i + 1}. ${x.title}</p>
+              <button data-remove-parsed="${i}" class="text-[11px] px-2 py-1 rounded-lg bg-rose-50 text-rose-700">删除</button>
+            </div>
+            <select data-type-parsed="${i}" class="mt-2 w-full rounded-xl border border-slate-200 px-2 py-1.5 text-xs">
+              ${Object.entries(TYPE_META).map(([k, v]) => `<option value="${k}" ${x.type === k ? "selected" : ""}>${v.icon} ${v.label}</option>`).join("")}
+            </select>
+          </div>
+        `).join("")
+        : `<p class="text-xs text-slate-500">未识别到可导入内容</p>`;
+
+      document.querySelectorAll("[data-remove-parsed]").forEach((btn) => btn.addEventListener("click", (e) => {
+        const idx = Number(e.currentTarget.dataset.removeParsed);
+        parsedDraft = parsedDraft.filter((_, i) => i !== idx);
+        renderParsedPreview();
+      }));
+      document.querySelectorAll("[data-type-parsed]").forEach((sel) => sel.addEventListener("change", (e) => {
+        const idx = Number(e.currentTarget.dataset.typeParsed);
+        if (!parsedDraft[idx]) return;
+        parsedDraft[idx].type = e.currentTarget.value;
+      }));
+    }
+
+    function applyQuickDeadline(key, dateInputId, timeInputId) {
+      const now = new Date();
+      const d = new Date(now);
+      if (key === "tomorrow22") d.setDate(d.getDate() + 1);
+      if (key === "sunday20") {
+        const day = d.getDay();
+        const diff = (7 - day) % 7 || 7;
+        d.setDate(d.getDate() + diff);
+      }
+      const hh = key === "sunday20" ? "20" : "22";
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      document.getElementById(dateInputId).value = dateStr;
+      document.getElementById(timeInputId).value = `${hh}:00`;
+    }
+
+    async function renderAssignTab() {
+      const assignCard = document.getElementById("assignCard");
+      const bulkAssignCard = document.getElementById("bulkAssignCard");
+      if (!canAssign(sessionUser)) {
+        if (assignCard) assignCard.classList.add("hidden");
+        if (bulkAssignCard) bulkAssignCard.classList.add("hidden");
+        return;
+      }
+      if (assignCard) assignCard.classList.remove("hidden");
+      if (bulkAssignCard) bulkAssignCard.classList.remove("hidden");
+
+      const assignableStudents = students.filter(isStudentRecord);
+      const opts = assignableStudents.map((s) => `<option value="${s.name}">${s.name}</option>`).join("");
+      document.getElementById("assignStudent").innerHTML = opts;
+      document.getElementById("bulkStudent").innerHTML = opts;
+      const typeOpts = Object.entries(TYPE_META).map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join("");
+      document.getElementById("assignType").innerHTML = typeOpts;
+      document.getElementById("bulkTypeFallback").innerHTML = typeOpts;
+
+      if (!assignableStudents.length && activeTab === "assign") {
+        showToast("请先在人员管理中添加学生");
+      }
+    }
+
+    function renderProfileTab() {
+      if (!sessionUser) return;
+      const who = document.getElementById("profileWhoami");
+      if (who) who.textContent = `${sessionUser.role.toUpperCase()} · ${sessionUser.name}`;
+      const key = findAccountKeyByName(sessionUser.name);
+      const acc = key ? TEST_ACCOUNTS[key] : null;
+      const statusText = acc
+        ? `密码状态：${acc.isDefaultPassword ? "默认密码（建议立即修改）" : "已自定义"} · 最近修改：${acc.passwordUpdatedAt ? fmtDateTime(acc.passwordUpdatedAt) : "未记录"}`
+        : "密码状态：当前账号不在内置账号列表，无法展示安全状态";
+      const statusEl = document.getElementById("profileSecurityStatus");
+      if (statusEl) statusEl.textContent = statusText;
+
+      const isAdmin = canManagePeople(sessionUser);
+      toggleHidden("adminResetCard", !isAdmin);
+      toggleHidden("adminLogCard", !isAdmin);
+      const prefTheme = document.getElementById("prefsTheme");
+      const prefFont = document.getElementById("prefsFontSize");
+      if (prefTheme) prefTheme.value = uiPrefs.theme;
+      if (prefFont) prefFont.value = uiPrefs.fontSize;
+      if (isAdmin) {
+        const sel = document.getElementById("adminResetTarget");
+        if (sel) {
+          const options = Object.keys(TEST_ACCOUNTS).map((k) => {
+            const a = TEST_ACCOUNTS[k];
+            const label = `${a.displayName || k} (${a.role})`;
+            return `<option value="${k}">${label}</option>`;
+          }).join("");
+          sel.innerHTML = options;
+        }
+      }
+      renderAdminLogList();
+    }
+
+    function renderAdminLogList() {
+      if (!canManagePeople(sessionUser)) return;
+      const list = document.getElementById("adminLogList");
+      if (!list) return;
+      const type = document.getElementById("adminLogType")?.value || "all";
+      const logs = messages
+        .filter((m) => m.studentName === "__SYSTEM__" && /^\[AUDIT:/.test(m.content))
+        .filter((m) => {
+          if (type === "all") return true;
+          return m.content.includes(`[AUDIT:${type}]`);
+        })
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      list.innerHTML = logs.length
+        ? logs.map((m) => `<div class="rounded-xl border border-slate-200 bg-slate-50 p-2"><p class="text-xs">${m.content}</p><p class="text-[11px] text-slate-500 mt-1">${m.sender} · ${fmtDateTime(m.createdAt)}</p></div>`).join("")
+        : `<p class="text-xs text-slate-500">暂无日志</p>`;
+    }
+
+    async function renderRemindersTab() {
+      if (!canQuickRemind(sessionUser)) return;
+      listLoading("reminderList", "加载催收...");
+      try {
+        await refreshCloudData();
+      } catch (err) {
+        showToast(`拉取失败：${err?.message || "未知错误"}`);
+        return;
+      }
+      const now = new Date();
+      const in12h = new Date(now.getTime() + 12 * 3600000);
+      const urgent = assignments
+        .filter((a) => a.status !== "completed")
+        .map((a) => ({ a, overdue: new Date(a.deadline) < now, soon: new Date(a.deadline) >= now && new Date(a.deadline) <= in12h }))
+        .filter((x) => x.overdue || x.soon)
+        .sort((x, y) => new Date(x.a.deadline) - new Date(y.a.deadline));
+      document.getElementById("reminderList").innerHTML = urgent.length ? urgent.map(({ a, overdue }) => {
+        const text = `${a.studentName}，提醒你：作业《${a.title}》${overdue ? "已逾期" : "即将到期"}（${fmtDateTime(a.deadline)}），请尽快处理。`;
+        return `
+          <div class="bg-slate-50 rounded-2xl border border-slate-200 p-3">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-medium">${a.studentName} · ${a.title}</p>
+              <span class="text-[11px] px-2 py-0.5 rounded-full ${overdue ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}">${overdue ? "逾期" : "12h内"}</span>
+            </div>
+            <button data-copy="${encodeURIComponent(text)}" class="mt-2 rounded-xl bg-indigo-600 text-white text-xs px-3 py-1.5 active:scale-95 transition-transform duration-200">复制文案</button>
+          </div>
+        `;
+      }).join("") : `<p class="text-xs text-slate-500">暂无需要催收的作业</p>`;
+      document.querySelectorAll("[data-copy]").forEach((btn) => btn.addEventListener("click", async (e) => {
+        const txt = decodeURIComponent(e.currentTarget.dataset.copy);
+        try {
+          await navigator.clipboard.writeText(txt);
+          showToast("已复制，可前往微信粘贴");
+        } catch {
+          showToast("复制失败");
+        }
+      }));
+    }
+
+    async function renderAll() {
+      const hasUser = !!sessionUser;
+      toggleHidden("loginView", hasUser);
+      toggleHidden("appView", !hasUser);
+      toggleHidden("bottomNav", !hasUser);
+      if (!hasUser) return;
+
+      document.getElementById("roleLabel").textContent = `${sessionUser.role.toUpperCase()} · ${sessionUser.name}`;
+      try {
+        await refreshCloudData();
+      } catch (err) {
+        showToast(`拉取云端数据失败：${errMsg(err)}`);
+      }
+
+      const allowed = getTabsByRole(sessionUser).map((x) => x.id);
+      if (!allowed.includes(activeTab)) activeTab = allowed[0] || "board";
+      setTab(activeTab);
+    }
+
+    function bindEvents() {
+      document.getElementById("loginForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("loginName").value.trim();
+        const nameLower = name.toLowerCase();
+        const password = document.getElementById("loginPassword").value;
+        if (!name) return;
+        const btn = document.getElementById("loginBtn");
+        setBtnLoading(btn, true, "进入中...", "进入系统");
+        try {
+          const accountKey = findAccountKeyByName(name);
+          const account = accountKey ? TEST_ACCOUNTS[accountKey] : null;
+          if (!account) throw new Error("账号不存在");
+          if (account.password !== password) throw new Error("密码错误");
+          const role = account.role;
+
+          await ensureBmobReady();
+
+          if (role === ROLE.STUDENT) {
+            const list = await fetchStudents();
+            const displayName = account.displayName || name;
+            const exists = list.some((s) => isStudentRecord(s) && s.name === displayName);
+            if (!exists) throw new Error("云端 Student 表没有该学生");
+            sessionUser = { role, name: displayName };
+          } else {
+            sessionUser = { role, name };
+          }
+          if (role === ROLE.ADMIN && nameLower !== "sunyihan") throw new Error("管理员仅允许 sunyihan");
+          saveSession();
+          await renderAll();
+        } catch (err) {
+          showToast(`登录失败：${errMsg(err, "请检查网络/Key")}`);
+        } finally {
+          setBtnLoading(btn, false, "进入中...", "进入系统");
+        }
+      });
+
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        sessionUser = null;
+        activeTab = "board";
+        saveSession();
+        renderAll();
+      });
+
+      document.getElementById("addStudentForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!canManagePeople(sessionUser)) return showToast("无权限");
+        const name = document.getElementById("newStudentName").value.trim();
+        if (!name) return showToast("请输入学生姓名");
+        const btn = document.getElementById("addStudentBtn");
+        setBtnLoading(btn, true, "处理中...", "新增学生");
+        try {
+          await createStudent(name);
+          document.getElementById("newStudentName").value = "";
+          await renderPeopleTab();
+          await renderAssignTab();
+          showToast("新增成功");
+        } catch (err) {
+          showToast(`新增失败：${errMsg(err)}`);
+        } finally {
+          setBtnLoading(btn, false, "处理中...", "新增学生");
+        }
+      });
+
+      document.getElementById("boardStudentFilter").addEventListener("change", renderBoardTab);
+
+      document.getElementById("assignForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!canAssign(sessionUser)) return showToast("无权限");
+        const studentName = document.getElementById("assignStudent").value;
+        const title = document.getElementById("assignTitle").value.trim();
+        const type = document.getElementById("assignType").value;
+        const date = document.getElementById("assignDate").value;
+        const time = document.getElementById("assignTime").value;
+        if (!studentName || !title || !type || !date || !time) return showToast("请填写完整信息");
+        const btn = document.getElementById("assignBtn");
+        setBtnLoading(btn, true, "处理中...", "发布作业");
+        try {
+          await createAssignment({
+            title,
+            type,
+            deadline: new Date(`${date}T${time}`).toISOString(),
+            studentName,
+            status: "pending"
+          });
+          recentAssignTemplate = { studentName, type, date, time };
+          e.target.reset();
+          await renderBoardTab();
+          await renderRemindersTab();
+          showToast(`已发布：${studentName} · ${title}`);
+        } catch (err) {
+          showToast(`发布失败：${errMsg(err)}`);
+        } finally {
+          setBtnLoading(btn, false, "处理中...", "发布作业");
+        }
+      });
+
+      document.getElementById("saveTemplateBtn").addEventListener("click", () => {
+        recentAssignTemplate = {
+          studentName: document.getElementById("assignStudent").value,
+          type: document.getElementById("assignType").value,
+          date: document.getElementById("assignDate").value,
+          time: document.getElementById("assignTime").value
+        };
+        showToast("已保存为最近模板");
+      });
+
+      document.getElementById("useRecentTemplateBtn").addEventListener("click", () => {
+        if (!recentAssignTemplate) return showToast("暂无最近模板");
+        document.getElementById("assignStudent").value = recentAssignTemplate.studentName || "";
+        document.getElementById("assignType").value = recentAssignTemplate.type || "listening";
+        document.getElementById("assignDate").value = recentAssignTemplate.date || "";
+        document.getElementById("assignTime").value = recentAssignTemplate.time || "";
+        showToast("已套用最近模板");
+      });
+
+      document.querySelectorAll("[data-quick-ddl]").forEach((btn) => btn.addEventListener("click", (e) => {
+        applyQuickDeadline(e.currentTarget.dataset.quickDdl, "assignDate", "assignTime");
+      }));
+
+      document.getElementById("parseBtn").addEventListener("click", (e) => {
+        e.preventDefault();
+        const txt = document.getElementById("bulkText").value.trim();
+        const fallbackType = document.getElementById("bulkTypeFallback").value;
+        if (!txt) return showToast("请先粘贴文本");
+        parsedDraft = parseBulkText(txt, fallbackType);
+        renderParsedPreview();
+      });
+      document.getElementById("loadBulkFileBtn").addEventListener("click", (e) => {
+        e.preventDefault();
+        const file = document.getElementById("bulkFileInput").files?.[0];
+        if (!file) return showToast("请先选择文件");
+        const isTextLike = file.type.startsWith("text/") || /\.(txt|md|csv|json)$/i.test(file.name);
+        if (!isTextLike) return showToast("当前仅支持文本类文件自动读取，PDF/图片建议先复制文字再粘贴");
+        const reader = new FileReader();
+        reader.onload = () => {
+          document.getElementById("bulkText").value = String(reader.result || "");
+          showToast(`已读取文件：${file.name}`);
+        };
+        reader.onerror = () => showToast("读取文件失败");
+        reader.readAsText(file, "utf-8");
+      });
+
+      document.getElementById("importParsedBtn").addEventListener("click", async (e) => {
+        e.preventDefault();
+        if (!canAssign(sessionUser)) return showToast("无权限");
+        if (!parsedDraft.length) return showToast("请先解析文本");
+        const studentName = document.getElementById("bulkStudent").value;
+        const date = document.getElementById("bulkDate").value;
+        const time = document.getElementById("bulkTime").value;
+        if (!studentName || !date || !time) return showToast("请设置学生与截止时间");
+        const btn = document.getElementById("importParsedBtn");
+        setBtnLoading(btn, true, "处理中...", "导入作业");
+        try {
+          const ddl = new Date(`${date}T${time}`).toISOString();
+          for (const row of parsedDraft) {
+            await createAssignment({ title: row.title, type: row.type, deadline: ddl, studentName, status: "pending" });
+          }
+          recentAssignTemplate = { studentName, type: parsedDraft[0]?.type || "listening", date, time };
+          parsedDraft = [];
+          document.getElementById("bulkText").value = "";
+          renderParsedPreview();
+          await renderBoardTab();
+          await renderRemindersTab();
+          showToast(`批量导入成功：${studentName} · ${new Date(`${date}T${time}`).toLocaleString("zh-CN")}`);
+        } catch (err) {
+          showToast(`导入失败：${errMsg(err)}`);
+        } finally {
+          setBtnLoading(btn, false, "处理中...", "导入作业");
+        }
+      });
+
+      document.getElementById("sheetBackdrop").addEventListener("click", closeMessageSheet);
+      document.getElementById("messageForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!canSendPinMessage(sessionUser) || !selectedMessageStudent) return showToast("无权限");
+        const content = document.getElementById("messageContent").value.trim();
+        const assignmentTitle = document.getElementById("messageAssignment").value || "";
+        const isPinned = document.getElementById("messagePinned").checked;
+        if (!content) return showToast("请输入留言内容");
+        const btn = document.getElementById("sendMessageBtn");
+        setBtnLoading(btn, true, "处理中...", "发送并保存");
+        try {
+          await createMessage({
+            content,
+            sender: sessionUser.name,
+            assignmentTitle,
+            isPinned,
+            studentName: selectedMessageStudent
+          });
+          closeMessageSheet();
+          await renderBoardTab();
+          showToast("已发送并保存");
+        } catch (err) {
+          showToast(`发送失败：${errMsg(err)}`);
+        } finally {
+          setBtnLoading(btn, false, "处理中...", "发送并保存");
+        }
+      });
+
+      document.getElementById("profilePasswordForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!sessionUser) return;
+        const oldPwd = document.getElementById("profileOldPassword").value;
+        const nextPwd = document.getElementById("profileNewPassword").value;
+        const confirmPwd = document.getElementById("profileConfirmPassword").value;
+        if (!oldPwd || !nextPwd || !confirmPwd) return showToast("请填写完整密码信息");
+        if (nextPwd.length < 6) return showToast("新密码至少 6 位");
+        if (nextPwd !== confirmPwd) return showToast("两次新密码不一致");
+        const key = findAccountKeyByName(sessionUser.name);
+        if (!key || !TEST_ACCOUNTS[key]) return showToast("当前账号不支持在线改密");
+        if (TEST_ACCOUNTS[key].password !== oldPwd) return showToast("当前密码不正确");
+        if (!confirm("确认修改密码？")) return;
+        TEST_ACCOUNTS[key].password = nextPwd;
+        TEST_ACCOUNTS[key].passwordUpdatedAt = new Date().toISOString();
+        TEST_ACCOUNTS[key].isDefaultPassword = false;
+        e.currentTarget.reset();
+        showToast("密码已更新");
+        renderProfileTab();
+        appendAuditLog("profile", "用户自行修改密码", sessionUser.name, sessionUser.name);
+      });
+
+      document.getElementById("adminResetForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!canManagePeople(sessionUser)) return showToast("无权限");
+        const key = document.getElementById("adminResetTarget").value;
+        const pwd = document.getElementById("adminResetPassword").value.trim() || "123456";
+        if (pwd.length < 6) return showToast("新密码至少 6 位");
+        if (!key || !TEST_ACCOUNTS[key]) return showToast("目标用户不存在");
+        if (!confirm(`确认重置 ${key} 的密码？`)) return;
+        TEST_ACCOUNTS[key].password = pwd;
+        TEST_ACCOUNTS[key].passwordUpdatedAt = new Date().toISOString();
+        TEST_ACCOUNTS[key].isDefaultPassword = pwd === "123456";
+        try {
+          await createMessage({
+            content: `管理员 ${sessionUser.name} 重置了 ${key} 的密码`,
+            sender: sessionUser.name,
+            assignmentTitle: "",
+            isPinned: false,
+            studentName: TEST_ACCOUNTS[key].displayName || key
+          });
+        } catch {}
+        e.currentTarget.reset();
+        renderProfileTab();
+        showToast(`已重置 ${key} 密码`);
+        appendAuditLog("reset", "用户中心重置密码", sessionUser.name, key);
+      });
+
+      document.getElementById("prefsForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        uiPrefs.theme = document.getElementById("prefsTheme").value;
+        uiPrefs.fontSize = document.getElementById("prefsFontSize").value;
+        applyUiPrefs();
+        savePrefs();
+        showToast("显示偏好已保存");
+      });
+      document.getElementById("prefsTheme").addEventListener("change", () => {
+        uiPrefs.theme = document.getElementById("prefsTheme").value;
+        applyUiPrefs();
+      });
+      document.getElementById("prefsFontSize").addEventListener("change", () => {
+        uiPrefs.fontSize = document.getElementById("prefsFontSize").value;
+        applyUiPrefs();
+      });
+
+      document.getElementById("adminLogType").addEventListener("change", renderAdminLogList);
+      document.getElementById("adminLogRefreshBtn").addEventListener("click", async () => {
+        try {
+          await refreshCloudData();
+          renderAdminLogList();
+          showToast("日志已刷新");
+        } catch (err) {
+          showToast(`刷新日志失败：${errMsg(err)}`);
+        }
+      });
+      document.getElementById("adminLogExportBtn").addEventListener("click", () => {
+        const logs = messages
+          .filter((m) => m.studentName === "__SYSTEM__" && /^\[AUDIT:/.test(m.content))
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .map((m) => `${fmtDateTime(m.createdAt)} | ${m.sender} | ${m.content}`)
+          .join("\n");
+        if (!logs) return showToast("暂无可导出的日志");
+        downloadTextFile(`admin-audit-${Date.now()}.txt`, logs);
+        showToast("日志已导出");
+      });
+      document.getElementById("exportRemindersBtn").addEventListener("click", () => {
+        const now = new Date();
+        const in12h = new Date(now.getTime() + 12 * 3600000);
+        const lines = assignments
+          .filter((a) => a.status !== "completed")
+          .map((a) => ({ a, overdue: new Date(a.deadline) < now, soon: new Date(a.deadline) >= now && new Date(a.deadline) <= in12h }))
+          .filter((x) => x.overdue || x.soon)
+          .sort((x, y) => new Date(x.a.deadline) - new Date(y.a.deadline))
+          .map(({ a, overdue }) => `${a.studentName}，提醒你：作业《${a.title}》${overdue ? "已逾期" : "即将到期"}（${fmtDateTime(a.deadline)}），请尽快处理。`);
+        if (!lines.length) return showToast("暂无可导出的催收文案");
+        downloadTextFile(`reminders-${Date.now()}.txt`, lines.join("\n"));
+        showToast("催收文案已导出");
+      });
+    }
+
+    const savedPrefs = loadPrefs();
+    if (savedPrefs && savedPrefs.theme && savedPrefs.fontSize) uiPrefs = savedPrefs;
+    sessionUser = loadSession();
+    applyUiPrefs();
+    bindEvents();
+    renderAll();
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
