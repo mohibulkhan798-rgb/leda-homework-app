@@ -79,32 +79,35 @@
   </style>
 </head>
 <body class="text-slate-800 min-h-screen pt-[env(safe-area-inset-top)] px-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]" style="background:linear-gradient(180deg,var(--bg-page-start),var(--bg-page-end));">
-  <div class="max-w-md mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+88px)]">
-    <section id="loginView" class="min-h-[84vh] flex items-center">
-      <div class="w-full card-soft rounded-3xl p-5">
-        <h1 class="text-3xl font-semibold tracking-tight">Leda</h1>
-        <p class="text-xs text-slate-500 mt-1 mb-4">Cloud Edition · Bmob</p>
+  <div class="w-full max-w-xl mx-auto px-3 pb-[calc(env(safe-area-inset-bottom)+88px)]">
+    <section id="loginView" class="min-h-screen flex items-center">
+      <div class="w-full card-soft rounded-[28px] p-6">
+        <h1 class="text-4xl font-semibold tracking-tight">Leda</h1>
+        <p class="text-sm text-slate-500 mt-1 mb-5">Homework Assistant</p>
         <form id="loginForm" class="space-y-3">
           <div>
             <label class="block text-xs font-medium mb-1">显示名</label>
-            <input id="loginName" class="w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="例如：sunyihan / 可欣" required />
+            <input id="loginName" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-base" placeholder="请输入账号（如 sunyihan / 可欣）" required />
           </div>
           <div>
             <label class="block text-xs font-medium mb-1">密码</label>
-            <input id="loginPassword" type="password" class="w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="请输入测试密码" required />
+            <input id="loginPassword" type="password" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-base" placeholder="请输入密码" required />
           </div>
-          <button id="loginBtn" class="w-full rounded-2xl btn-primary py-2.5 text-sm font-semibold active:scale-95 transition-transform duration-200">进入系统</button>
-          <p class="text-xs text-slate-500">测试账号：sunyihan/admin123，teacher/teacher123，ta/ta123，kexin/123456</p>
+          <label class="flex items-center justify-between rounded-2xl border border-slate-200 px-3 py-2.5 bg-white">
+            <span class="text-sm text-slate-600">记住登录状态（30天免登）</span>
+            <input id="loginRemember" type="checkbox" class="h-4 w-4 accent-indigo-600" checked />
+          </label>
+          <button id="loginBtn" class="w-full rounded-2xl btn-primary py-3 text-base font-semibold active:scale-95 transition-transform duration-200">进入系统</button>
         </form>
       </div>
     </section>
 
     <section id="appView" class="hidden">
-      <header class="sticky top-0 z-20 backdrop-blur py-3" style="background:var(--header-bg);">
-        <div class="flex items-center justify-between">
+      <header class="sticky top-0 z-20 py-2">
+        <div class="card-soft rounded-2xl px-4 py-3 flex items-center justify-between" style="background:var(--header-bg);">
           <div>
-            <h1 class="text-2xl font-semibold tracking-tight">Leda</h1>
-            <p id="roleLabel" class="text-xs text-slate-500"></p>
+            <h1 class="text-[34px] leading-none font-semibold tracking-tight">Leda</h1>
+            <p id="roleLabel" class="text-xs text-slate-500 mt-1"></p>
           </div>
           <button id="logoutBtn" class="rounded-xl btn-secondary px-3 py-1.5 text-xs active:scale-95 transition-transform duration-200">退出</button>
         </div>
@@ -309,6 +312,7 @@
     ];
     const SESSION_KEY = "leda-session-user-v1";
     const PREFS_KEY = "leda-ui-prefs-v1";
+    const SESSION_REMEMBER_DAYS = 30;
     let BMOB_INIT_ATTEMPTED = false;
 
     function keyReady() {
@@ -416,9 +420,9 @@
     };
 
     const TEST_ACCOUNTS = {
-      sunyihan: { role: ROLE.ADMIN, password: "admin123", passwordUpdatedAt: new Date().toISOString(), isDefaultPassword: false },
-      teacher: { role: ROLE.TEACHER, password: "teacher123", passwordUpdatedAt: new Date().toISOString(), isDefaultPassword: false },
-      ta: { role: ROLE.TA, password: "ta123", passwordUpdatedAt: new Date().toISOString(), isDefaultPassword: false },
+      sunyihan: { role: ROLE.ADMIN, password: "123456", passwordUpdatedAt: null, isDefaultPassword: true },
+      teacher: { role: ROLE.TEACHER, password: "123456", passwordUpdatedAt: null, isDefaultPassword: true },
+      ta: { role: ROLE.TA, password: "123456", passwordUpdatedAt: null, isDefaultPassword: true },
       kexin: { role: ROLE.STUDENT, password: "123456", displayName: "可欣", passwordUpdatedAt: null, isDefaultPassword: true },
       zihan: { role: ROLE.STUDENT, password: "123456", displayName: "子涵", passwordUpdatedAt: null, isDefaultPassword: true },
       huake: { role: ROLE.STUDENT, password: "123456", displayName: "华柯", passwordUpdatedAt: null, isDefaultPassword: true }
@@ -443,16 +447,28 @@
       t.classList.remove("hidden");
       setTimeout(() => t.classList.add("hidden"), 1300);
     }
-    function saveSession() {
+    function saveSession(remember = true) {
       try {
-        if (sessionUser) localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
+        if (sessionUser) {
+          const expiresAt = remember ? Date.now() + SESSION_REMEMBER_DAYS * 24 * 3600 * 1000 : Date.now() + 24 * 3600 * 1000;
+          localStorage.setItem(SESSION_KEY, JSON.stringify({ user: sessionUser, expiresAt }));
+        }
         else localStorage.removeItem(SESSION_KEY);
       } catch {}
     }
     function loadSession() {
       try {
         const raw = localStorage.getItem(SESSION_KEY);
-        return raw ? JSON.parse(raw) : null;
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        // backward compatible: old payload was plain user object
+        if (parsed && parsed.role && parsed.name) return parsed;
+        if (!parsed?.user) return null;
+        if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+          localStorage.removeItem(SESSION_KEY);
+          return null;
+        }
+        return parsed.user;
       } catch {
         return null;
       }
@@ -1217,6 +1233,7 @@
         const name = document.getElementById("loginName").value.trim();
         const nameLower = name.toLowerCase();
         const password = document.getElementById("loginPassword").value;
+        const remember = !!document.getElementById("loginRemember")?.checked;
         if (!name) return;
         const btn = document.getElementById("loginBtn");
         setBtnLoading(btn, true, "进入中...", "进入系统");
@@ -1239,7 +1256,7 @@
             sessionUser = { role, name };
           }
           if (role === ROLE.ADMIN && nameLower !== "sunyihan") throw new Error("管理员仅允许 sunyihan");
-          saveSession();
+          saveSession(remember);
           await renderAll();
         } catch (err) {
           showToast(`登录失败：${errMsg(err, "请检查网络/Key")}`);
