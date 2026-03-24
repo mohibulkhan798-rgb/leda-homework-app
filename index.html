@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
   <meta name="theme-color" content="#f8fafc" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Leda Tasks" />
   <meta name="format-detection" content="telephone=no" />
   <title>Leda Homework OS (Bmob)</title>
@@ -56,10 +56,34 @@
       background: #fff;
       color: #334155;
     }
+    button, .tab-btn, select, input[type="text"], input[type="password"], input[type="date"], input[type="time"] {
+      min-height: 44px;
+      font-size: 16px;
+    }
+    textarea {
+      font-size: 16px;
+      line-height: 1.45;
+    }
     .card-soft {
       background: #ffffff;
       border: 1px solid var(--card-border);
       box-shadow: 0 6px 22px rgba(15, 23, 42, 0.08);
+    }
+    #taskList, #accordionList {
+      max-height: 58vh;
+      overflow: auto;
+      padding-right: 2px;
+    }
+    #bottomNav {
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.08);
+    }
+    #bottomTabs .tab-btn {
+      min-height: 48px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 600;
     }
     .skeleton {
       position: relative;
@@ -78,8 +102,8 @@
     @keyframes shimmer { to { transform: translateX(100%); } }
   </style>
 </head>
-<body class="text-slate-800 min-h-screen pt-[env(safe-area-inset-top)] px-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]" style="background:linear-gradient(180deg,var(--bg-page-start),var(--bg-page-end));">
-  <div class="w-full max-w-xl mx-auto px-3 pb-[calc(env(safe-area-inset-bottom)+88px)]">
+<body class="text-slate-800 min-h-screen px-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]" style="background:linear-gradient(180deg,var(--bg-page-start),var(--bg-page-end));">
+  <div class="w-full max-w-xl mx-auto px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-[calc(env(safe-area-inset-bottom)+92px)]">
     <section id="loginView" class="min-h-screen flex items-center">
       <div class="w-full card-soft rounded-[28px] p-6">
         <h1 class="text-4xl font-semibold tracking-tight">Leda</h1>
@@ -235,9 +259,9 @@
               <option value="peach">蜜桃橙</option>
             </select>
             <select id="prefsFontSize" class="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm">
-              <option value="14">标准字体</option>
-              <option value="15">稍大字体</option>
-              <option value="16">大字体</option>
+              <option value="16">标准字体</option>
+              <option value="18">稍大字体</option>
+              <option value="20">大字体</option>
             </select>
             <button id="prefsSaveBtn" class="w-full rounded-2xl btn-secondary py-2 text-sm">保存显示偏好</button>
           </form>
@@ -433,7 +457,7 @@
     let selectedMessageStudent = null;
     let parsedDraft = [];
     let recentAssignTemplate = null;
-    let uiPrefs = { theme: "violet-sky", fontSize: "14" };
+    let uiPrefs = { theme: "violet-sky", fontSize: "16" };
 
     // 云端数据缓存（每次请求后刷新）
     let students = [];
@@ -691,8 +715,9 @@
       const tabs = getTabsByRole(sessionUser);
       const box = document.getElementById("bottomTabs");
       box.style.gridTemplateColumns = `repeat(${tabs.length}, minmax(0,1fr))`;
+      const tabIcon = { people: "👥", board: "📋", assign: "📝", reminders: "⏰", profile: "👤" };
       box.innerHTML = tabs.map((tb) => `
-        <button data-tab="${tb.id}" class="tab-btn rounded-2xl py-2 text-xs font-semibold active:scale-95 transition-transform duration-200 ${activeTab === tb.id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"}">${tb.label}</button>
+        <button data-tab="${tb.id}" class="tab-btn flex items-center justify-center gap-1 py-2 active:scale-95 transition-transform duration-200 ${activeTab === tb.id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"}"><span>${tabIcon[tb.id] || "•"}</span><span>${tb.label}</span></button>
       `).join("");
       document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
         activeTab = btn.dataset.tab;
@@ -876,7 +901,7 @@
                   ${g.tasks.length ? g.tasks.map((a) => {
                     const st = STATUS_META[a.status] || STATUS_META.pending;
                     const ty = TYPE_META[a.type] || TYPE_META.reading;
-                    return `<div class="bg-white rounded-2xl border border-slate-200 p-3"><div class="flex items-start justify-between gap-2"><div><p class="text-sm font-semibold">${ty.icon} ${a.title}</p><p class="text-xs text-slate-500 mt-1">${ty.label} · ${ty.teacher} · 截止 ${fmtDateTime(a.deadline)}</p></div><div class="flex items-center gap-1">${canSendPinMessage(sessionUser) ? `<button data-msg-student="${a.studentName}" class="rounded-lg bg-indigo-100 text-indigo-700 text-[11px] px-2 py-1 active:scale-95 transition-transform duration-200">留言/Pin</button>` : ""}<button data-toggle-status="${a.id}" class="text-[11px] border px-2 py-0.5 rounded-full ${st.cls} active:scale-95 transition-transform duration-200">${st.label}</button></div></div></div>`;
+                    return `<div class="bg-white rounded-2xl border border-slate-200 p-3"><div><p class="text-base font-semibold">${ty.icon} ${a.title}</p><p class="text-sm text-slate-500 mt-1">${ty.label} · ${ty.teacher}</p><p class="text-sm text-slate-500">截止 ${fmtDateTime(a.deadline)}</p></div><div class="mt-3 grid grid-cols-2 gap-2">${canSendPinMessage(sessionUser) ? `<button data-msg-student="${a.studentName}" class="rounded-xl bg-indigo-100 text-indigo-700 px-2 py-2 active:scale-95 transition-transform duration-200">留言/Pin</button>` : `<span></span>`}${canManageStatus(sessionUser) ? `<select data-task-status="${a.id}" class="rounded-xl border border-slate-200 px-2 py-2"><option value="pending" ${a.status === "pending" ? "selected" : ""}>待完成</option><option value="completed" ${a.status === "completed" ? "selected" : ""}>已完成</option></select>` : `<span class="text-sm border px-2 py-2 rounded-xl text-center ${st.cls}">${st.label}</span>`}</div></div>`;
                   }).join("") : '<p class="text-xs text-slate-500">暂无作业</p>'}
                 </div>
               </div>
@@ -901,18 +926,17 @@
           firstChevron.style.transition = "transform 300ms";
         }
 
-        document.querySelectorAll("[data-toggle-status]").forEach((btn) => btn.addEventListener("click", async (e) => {
-          const id = e.currentTarget.dataset.toggleStatus;
-          const task = assignments.find((x) => x.id === id);
-          if (!task) return;
-          const next = task.status === "completed" ? "pending" : "completed";
+        document.querySelectorAll("[data-task-status]").forEach((sel) => sel.addEventListener("change", async (e) => {
+          const id = e.currentTarget.dataset.taskStatus;
+          const status = e.currentTarget.value;
           e.currentTarget.disabled = true;
           try {
-            await updateAssignmentStatus(id, next);
+            await updateAssignmentStatus(id, status);
             await renderBoardTab();
-            showToast("状态已切换");
+            showToast("状态已更新");
           } catch (err) {
             showToast(`更新失败：${errMsg(err)}`);
+            e.currentTarget.disabled = false;
           }
         }));
         document.querySelectorAll("[data-msg-student]").forEach((btn) => btn.addEventListener("click", (e) => {
@@ -994,21 +1018,20 @@
         const ty = TYPE_META[a.type] || TYPE_META.reading;
         return `
           <div class="bg-white rounded-2xl border border-slate-200 p-3">
-            <div class="flex items-start justify-between gap-2">
-              <div>
-                <p class="text-sm font-semibold">${ty.icon} ${a.title}</p>
-                <p class="text-xs text-slate-500 mt-1">${ty.label} · ${ty.teacher} · 截止 ${fmtDateTime(a.deadline)}</p>
-              </div>
-              <span class="text-[11px] border px-2 py-0.5 rounded-full ${st.cls}">${st.label}</span>
+            <div>
+              <p class="text-base font-semibold">${ty.icon} ${a.title}</p>
+              <p class="text-sm text-slate-500 mt-1">${ty.label} · ${ty.teacher}</p>
+              <p class="text-sm text-slate-500">截止 ${fmtDateTime(a.deadline)}</p>
+              <span class="inline-block mt-2 text-sm border px-3 py-1 rounded-full ${st.cls}">${st.label}</span>
             </div>
-            ${(canStatus || canMsg) ? `<div class="mt-2 grid grid-cols-2 gap-2">
+            ${(canStatus || canMsg) ? `<div class="mt-3 grid grid-cols-2 gap-2">
               ${canStatus ? `
-                <select data-task-status="${a.id}" class="rounded-xl border border-slate-200 px-2 py-1.5 text-xs">
+                <select data-task-status="${a.id}" class="rounded-xl border border-slate-200 px-2 py-2">
                   <option value="pending" ${a.status === "pending" ? "selected" : ""}>待完成</option>
                   <option value="completed" ${a.status === "completed" ? "selected" : ""}>已完成</option>
                 </select>
               ` : `<span></span>`}
-              ${canMsg ? `<button data-msg-student="${a.studentName}" class="rounded-xl bg-indigo-100 text-indigo-700 text-xs active:scale-95 transition-transform duration-200">💬 留言/Pin</button>` : `<span></span>`}
+              ${canMsg ? `<button data-msg-student="${a.studentName}" class="rounded-xl bg-indigo-100 text-indigo-700 active:scale-95 transition-transform duration-200">留言/Pin</button>` : `<span></span>`}
             </div>` : ""}
           </div>
         `;
